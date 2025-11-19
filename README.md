@@ -1,41 +1,100 @@
-<<<<<<< HEAD
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Career Booster — AI-Powered Resume Analyzer & Skill Gap Advisor
 
-## Getting Started
+Career Booster is an AI-assisted platform that scans your resume, extracts skills/projects, identifies missing skills, and recommends courses to upskill — all with a beautiful, modern UI.
 
-First, run the development server:
+This project is perfect for job seekers, students, and professionals who want to upgrade their career visibility.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### **📄 Resume Upload & Parsing**
+- Upload PDF or DOCX resume
+- Auto-extract:
+  - Skills
+  - Projects
+  - Experience (optional)
+  - Education (optional)
+- Uses **PyPDF2** and **docx2txt** for accurate extraction
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+### **🧠 AI Skill Gap Analysis**
+- Compares your current skills with industry-leading skills
+- Detects missing or weak skills
+- Suggests **value-boosting skills** even if they are not in your resume
+- Smart filtering to avoid marking existing skills as missing
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### **🧩 Add Missing Skills Manually**
+- User can type additional skills
+- System re-calculates the skill gap automatically
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+### **🎯 Recommended Skills Section**
+- Shows:
+  - Skills you have ✔
+  - Skills you should add ⭐ (industry trending ones)
+  - Skills the system could not detect but are relevant
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-=======
-# career-booster-saas
-AI-powered skill path recommendation engine
->>>>>>> aabdd577c0628980687e894600977f04123978e2
+### **🎓 Course Recommendation Engine**
+Over **350+ curated tech + non-tech skills**, mapped to:
+
+- Coursera  
+- Udemy  
+- edX  
+- YouTube  
+- DataCamp  
+- Google Garage  
+- LinkedIn Learning  
+- Pluralsight  
+- Free Resources  
+
+Each missing skill gets 4–8 recommended courses + Google search link.
+
+---
+
+### **🎨 Modern UI (Dark Mode Edition)**
+- Full-screen background
+- Neon blue accents
+- Blurred glass cards
+- Clean, centered layout
+- Professional SaaS look
+- Designed with TailwindCSS 4
+
+---
+
+### **🔗 Frontend–Backend Connected**
+- Frontend: **Next.js + React**
+- Backend: **Flask + Python**
+- CORS enabled
+- Uses REST API:
+  - `/upload`
+  - `/course-recommendations`
+
+---
+
+## 🛠️ Tech Stack
+
+### **Frontend**
+- Next.js 16
+- React 19
+- Tailwind CSS 4
+- Fetch API
+
+### **Backend**
+- Python 3.10+
+- Flask
+- Flask-CORS
+- PyPDF2
+- docx2txt
+- fuzzywuzzy
+
+---
+
+## 📁 Project Structure
+
