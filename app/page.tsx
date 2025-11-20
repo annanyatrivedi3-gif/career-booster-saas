@@ -47,37 +47,34 @@ const ROLE_SKILL_MAP: Record<string, string[]> = {
   ]
 };
 
-// General valuable skills that often boost resume irrespective of role (for cross-suggestions)
 const GENERAL_VALUE_SKILLS = [
   'git', 'github', 'communication', 'leadership', 'problem solving', 'project management',
   'sql', 'docker', 'testing', 'unit testing', 'ci/cd', 'aws', 'azure', 'power bi', 'tableau',
   'data visualization', 'regex', 'linux', 'typescript', 'api design'
 ];
 
-export default function Home(): JSX.Element {
+export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [manualSkills, setManualSkills] = useState('');
   const [missingSkills, setMissingSkills] = useState<string[]>([]);
   const [gapData, setGapData] = useState<Course[]>([]);
-  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedRole, setSelectedRole] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // normalize helper
   const normalize = (s: string) => s.trim().toLowerCase();
 
-  // parsed skills normalized set
   const parsedSkillSet = useMemo(() => {
     const arr = parsedData?.skills ?? [];
     return new Set(arr.map(s => normalize(s)));
   }, [parsedData]);
 
-  // auto-detect role (best overlap) if user hasn't chosen role
-  const detectBestRole = (): string => {
+  const detectBestRole = () => {
     if (!parsedData?.skills || parsedData.skills.length === 0) return '';
     let bestRole = '';
     let bestScore = -1;
+
     for (const role of Object.keys(ROLE_SKILL_MAP)) {
       const desired = ROLE_SKILL_MAP[role].map(normalize);
       const overlap = desired.filter(d => parsedSkillSet.has(d)).length;
@@ -120,11 +117,10 @@ export default function Home(): JSX.Element {
       }
 
       const data = await res.json();
-      // ensure arrays exist
       if (!data.skills) data.skills = [];
       if (!data.projects) data.projects = [];
       setParsedData(data);
-      // auto-set role if not chosen
+
       if (!selectedRole) {
         const detected = detectBestRole();
         if (detected) setSelectedRole(detected);
@@ -142,6 +138,7 @@ export default function Home(): JSX.Element {
     const newList = manualSkills.split(',')
       .map(s => s.trim())
       .filter(s => s.length > 0);
+
     if (newList.length === 0) return;
 
     const combined = Array.from(new Set([...(parsedData.skills || []), ...newList]));
@@ -149,19 +146,22 @@ export default function Home(): JSX.Element {
     setManualSkills('');
   };
 
-  // Build recommended missing skills (role-based + general suggestions)
-  const computeMissingForRole = (role: string): string[] => {
-    const desired = ROLE_SKILL_MAP[role] ? ROLE_SKILL_MAP[role].map(normalize) : [];
+  const computeMissingForRole = (role: string) => {
+    const desired = ROLE_SKILL_MAP[role]?.map(normalize) || [];
     const missing = desired.filter(d => !parsedSkillSet.has(d));
-    // also add a couple of high-value general skills not already present
+
     const extras = GENERAL_VALUE_SKILLS
       .map(normalize)
       .filter(g => !parsedSkillSet.has(g) && !missing.includes(g))
-      .slice(0, 3); // add up to 3 extras
-    // return capitalized / display-friendly variants
+      .slice(0, 3);
+
     const combined = [...missing, ...extras];
-    // map back to nicer strings (original casing) — simple title-case
-    return combined.map(s => s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
+
+    return combined.map(s => s
+      .split(' ')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+    );
   };
 
   const analyzeSkillGap = async () => {
@@ -170,10 +170,9 @@ export default function Home(): JSX.Element {
       return;
     }
 
-    // pick role: user-chosen else auto-detect
     const role = selectedRole || detectBestRole();
     if (!role) {
-      setError('Select role or upload resume with recognizable skills.');
+      setError('Select a role or upload a resume with clear skills.');
       return;
     }
 
@@ -182,13 +181,12 @@ export default function Home(): JSX.Element {
     setGapData([]);
     setMissingSkills([]);
 
-    // compute missing skills list (value-adding)
     const missing = computeMissingForRole(role);
     setMissingSkills(missing);
 
     try {
-      // backend expects lowercase / skill strings — we'll send normalized
       const payloadSkills = missing.map(s => s.toLowerCase());
+
       const res = await fetch('http://127.0.0.1:5000/course-recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,23 +208,22 @@ export default function Home(): JSX.Element {
     }
   };
 
-  // ROLE OPTIONS
   const roleOptions = Object.keys(ROLE_SKILL_MAP);
 
   return (
     <main className="min-h-screen bg-neutral-900 text-slate-100 flex items-center justify-center p-6">
       <div className="w-full max-w-4xl">
-        {/* header */}
         <header className="mb-6 text-center">
           <h1 className="text-4xl font-extrabold text-white">Career Booster</h1>
-          <p className="mt-2 text-slate-300">Dark professional theme · role-based missing skills & course recommendations</p>
+          <p className="mt-2 text-slate-300">
+            Role-based skill gap analysis + course recommendations
+          </p>
         </header>
 
-        {/* card */}
-        <section className="bg-gradient-to-b from-neutral-850/60 to-neutral-900/60 border border-neutral-800 rounded-2xl shadow-2xl p-6">
+        <section className="bg-neutral-850/60 border border-neutral-800 rounded-2xl shadow-2xl p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            {/* LEFT: controls */}
+            {/* LEFT */}
             <div className="p-4 space-y-4">
               <label className="block text-sm font-medium text-slate-300">Upload Resume (PDF/DOCX)</label>
               <input
@@ -237,14 +234,14 @@ export default function Home(): JSX.Element {
               />
 
               <div>
-                <label className="block text-sm font-medium text-slate-300">Select Role (or leave blank to auto-detect)</label>
+                <label className="block text-sm font-medium text-slate-300">Select Role</label>
                 <select
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
                   className="mt-2 w-full bg-neutral-800 text-slate-100 px-3 py-2 rounded-md border border-neutral-700"
                 >
-                  <option value="">-- Auto-detect best role --</option>
-                  {roleOptions.map((r) => (
+                  <option value="">-- Auto Detect --</option>
+                  {roleOptions.map(r => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
@@ -267,11 +264,13 @@ export default function Home(): JSX.Element {
               </div>
 
               <div className="text-sm text-slate-400">
-                <p>Status: {loading ? <span className="text-yellow-300">Processing...</span> : <span className="text-emerald-400">Idle</span>}</p>
+                <p>
+                  Status: {loading ? <span className="text-yellow-300">Processing...</span> : <span className="text-emerald-400">Idle</span>}
+                </p>
                 {error && <p className="text-red-400 mt-2">{error}</p>}
               </div>
 
-              {/* add missing */}
+              {/* Add Skills */}
               <div className="mt-4">
                 <label className="block text-sm text-slate-300">Add Missing Skills (comma separated)</label>
                 <input
@@ -281,54 +280,62 @@ export default function Home(): JSX.Element {
                   className="mt-2 w-full px-3 py-2 rounded-md bg-neutral-800 text-slate-100 border border-neutral-700"
                 />
                 <div className="mt-2 flex gap-2">
-                  <button onClick={addMissingSkills} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded-md text-neutral-900 font-medium">Add</button>
-                  <button onClick={() => setManualSkills('')} className="bg-neutral-700 hover:bg-neutral-650 px-3 py-1 rounded-md text-slate-200">Clear</button>
+                  <button onClick={addMissingSkills} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded-md text-neutral-900 font-medium">
+                    Add
+                  </button>
+                  <button onClick={() => setManualSkills('')} className="bg-neutral-700 hover:bg-neutral-650 px-3 py-1 rounded-md text-slate-200">
+                    Clear
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* RIGHT: parsed data */}
+            {/* RIGHT */}
             <div className="p-4 bg-neutral-850 rounded-xl border border-neutral-800">
               <h3 className="text-lg font-semibold text-white mb-3">Parsed Resume</h3>
 
+              {/* SKILLS */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-slate-300">Skills</span>
                   <span className="text-xs text-slate-400">{parsedData?.skills?.length ?? 0}</span>
                 </div>
+
                 <div className="max-h-40 overflow-auto rounded">
                   <table className="w-full text-left">
                     <tbody>
-                      {parsedData?.skills && parsedData.skills.length > 0 ? (
-                        parsedData.skills.map((s, i) => (
+                      {(parsedData?.skills?.length ?? 0) > 0 ? (
+                        parsedData!.skills!.map((s, i) => (
                           <tr key={i} className="odd:bg-neutral-860 even:bg-neutral-855">
                             <td className="px-3 py-2 text-slate-100">{s}</td>
                           </tr>
                         ))
                       ) : (
-                        <tr><td className="px-3 py-3 text-slate-400">No skills parsed yet.</td></tr>
+                        <tr><td className="px-3 py-3 text-slate-400">No skills parsed.</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
               </div>
 
+              {/* PROJECTS */}
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-slate-300">Projects</span>
                   <span className="text-xs text-slate-400">{parsedData?.projects?.length ?? 0}</span>
                 </div>
+
                 <div className="max-h-40 overflow-auto rounded">
                   <table className="w-full text-left">
                     <tbody>
-                      {parsedData?.projects && parsedData.projects.length > 0 ? (
-                        parsedData.projects.map((p, i) => (
+                      {(parsedData?.projects?.length ?? 0) > 0 ? (
+                        parsedData!.projects!.map((p, i) => (
                           <tr key={i} className="odd:bg-neutral-860 even:bg-neutral-855">
                             <td className="px-3 py-2 text-slate-100">{p}</td>
                           </tr>
                         ))
                       ) : (
-                        <tr><td className="px-3 py-3 text-slate-400">No projects found yet.</td></tr>
+                        <tr><td className="px-3 py-3 text-slate-400">No projects found.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -338,13 +345,13 @@ export default function Home(): JSX.Element {
 
           </div>
 
-          {/* Recommended missing skills */}
+          {/* Missing Skills */}
           {missingSkills.length > 0 && (
             <div className="mt-6 bg-neutral-850 border border-neutral-800 rounded-md p-4">
-              <h3 className="text-md font-semibold text-cyan-300 mb-2">Recommended (Value-Adding) Skills</h3>
+              <h3 className="text-md font-semibold text-cyan-300 mb-2">Recommended Skills</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {missingSkills.map((ms, idx) => (
-                  <div key={idx} className="px-3 py-2 rounded-md bg-neutral-800 border border-neutral-750 text-slate-100 text-sm">
+                {missingSkills.map((ms, i) => (
+                  <div key={i} className="px-3 py-2 rounded-md bg-neutral-800 border border-neutral-750 text-slate-100 text-sm">
                     {ms}
                   </div>
                 ))}
@@ -352,7 +359,7 @@ export default function Home(): JSX.Element {
             </div>
           )}
 
-          {/* Courses */}
+          {/* Course Recommendations */}
           {gapData.length > 0 && (
             <div className="mt-6 bg-neutral-850 border border-neutral-800 rounded-md p-4">
               <h3 className="text-md font-semibold text-cyan-300 mb-3">Recommended Courses</h3>
@@ -374,18 +381,17 @@ export default function Home(): JSX.Element {
                         <td className="px-3 py-2 text-slate-100">{c.title}</td>
                         <td className="px-3 py-2 text-cyan-200">{c.platform}</td>
                         <td className="px-3 py-2">
-                          <a href={c.link} target="_blank" rel="noreferrer" className="text-indigo-300 underline">View</a>
+                          <a href={c.link} target="_blank" className="text-indigo-300 underline">View</a>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-
             </div>
           )}
 
-          <div className="mt-4 text-xs text-slate-500">Tip: choose a role to get role-specific missing skills. Auto-detect is used if role is blank.</div>
+          <div className="mt-4 text-xs text-slate-500">Tip: Auto-detect role works best with resumes containing technical skills.</div>
         </section>
       </div>
     </main>
