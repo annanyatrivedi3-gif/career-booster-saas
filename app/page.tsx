@@ -14,6 +14,9 @@ interface Course {
   link: string;
 }
 
+// LIVE BACKEND URL
+const API = "https://career-booster-backend-otft.onrender.com";
+
 const ROLE_SKILL_MAP: Record<string, string[]> = {
   'Frontend Developer': [
     'html', 'css', 'javascript', 'react', 'typescript', 'next.js', 'tailwind', 'responsive design', 'accessibility'
@@ -106,7 +109,7 @@ export default function Home() {
     formData.append('resume', file);
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/upload', {
+      const res = await fetch(`${API}/upload`, {
         method: 'POST',
         body: formData
       });
@@ -187,7 +190,7 @@ export default function Home() {
     try {
       const payloadSkills = missing.map(s => s.toLowerCase());
 
-      const res = await fetch('http://127.0.0.1:5000/course-recommendations', {
+      const res = await fetch(`${API}/course-recommendations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ missing_skills: payloadSkills })
