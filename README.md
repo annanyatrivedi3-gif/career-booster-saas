@@ -46,13 +46,7 @@ Over **350+ curated tech + non-tech skills**, mapped to:
 
 - Coursera  
 - Udemy  
-- edX  
-- YouTube  
-- DataCamp  
-- Google Garage  
-- LinkedIn Learning  
-- Pluralsight  
-- Free Resources  
+ 
 
 Each missing skill gets 4–8 recommended courses + Google search link.
 
