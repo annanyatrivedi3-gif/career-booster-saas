@@ -1,402 +1,266 @@
-'use client';
+"use client";
 
-import { useState, ChangeEvent, useMemo } from 'react';
+import { useState } from "react";
+import { Upload, FileText, Search, Loader2, CheckCircle } from "lucide-react";
+import { ROLES } from "@/data/roles";
 
-interface ParsedData {
-  skills?: string[];
-  projects?: string[];
-}
+type ParsedResume = {
+  parsed: {
+    text: string;
+    skills: string[];
+  };
+};
 
-interface Course {
+type Course = {
   skill: string;
   title: string;
   platform: string;
-  link: string;
-}
-
-// LIVE BACKEND URL
-const API = "https://career-booster-backend-otft.onrender.com";
-
-const ROLE_SKILL_MAP: Record<string, string[]> = {
-  'Frontend Developer': [
-    'html', 'css', 'javascript', 'react', 'typescript', 'next.js', 'tailwind', 'responsive design', 'accessibility'
-  ],
-  'Backend Developer': [
-    'node.js', 'express', 'python', 'flask', 'django', 'sql', 'postgresql', 'mongodb', 'rest api', 'docker'
-  ],
-  'Full Stack Developer': [
-    'html', 'css', 'javascript', 'react', 'node.js', 'express', 'sql', 'docker', 'next.js', 'typescript'
-  ],
-  'Data Scientist': [
-    'python', 'pandas', 'numpy', 'scikit-learn', 'machine learning', 'statistics', 'data visualization', 'nlp'
-  ],
-  'ML Engineer': [
-    'python', 'tensorflow', 'pytorch', 'machine learning', 'deep learning', 'mlops', 'docker', 'model deployment'
-  ],
-  'DevOps Engineer': [
-    'linux', 'docker', 'kubernetes', 'ci/cd', 'terraform', 'aws', 'monitoring', 'observability'
-  ],
-  'BI Analyst': [
-    'excel', 'power bi', 'tableau', 'sql', 'data visualization', 'dax', 'power query'
-  ],
-  'Embedded Engineer': [
-    'embedded c', 'arduino', 'raspberry pi', 'microcontroller', 'electronics', 'pcb design', 'iot'
-  ],
-  'Product Manager': [
-    'product management', 'agile', 'scrum', 'stakeholder management', 'roadmapping', 'communication'
-  ],
-  'Security Engineer': [
-    'cybersecurity', 'networking', 'penetration testing', 'linux', 'ethical hacking', 'security fundamentals'
-  ]
+  url: string;
 };
 
-const GENERAL_VALUE_SKILLS = [
-  'git', 'github', 'communication', 'leadership', 'problem solving', 'project management',
-  'sql', 'docker', 'testing', 'unit testing', 'ci/cd', 'aws', 'azure', 'power bi', 'tableau',
-  'data visualization', 'regex', 'linux', 'typescript', 'api design'
-];
+type AnalysisResponse = {
+  role: string;
+  skills: string[];
+  required: string[];
+  missing: string[];
+  match_score: number;
+  salary_range: { min: string; max: string };
+  career_paths: string[];
+  job_description: string;
+  courses: Course[];
+};
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [manualSkills, setManualSkills] = useState('');
-  const [missingSkills, setMissingSkills] = useState<string[]>([]);
-  const [gapData, setGapData] = useState<Course[]>([]);
-  const [selectedRole, setSelectedRole] = useState('');
+  const [parsed, setParsed] = useState<ParsedResume | null>(null);
+  const [selectedRole, setSelectedRole] = useState("");
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  const normalize = (s: string) => s.trim().toLowerCase();
-
-  const parsedSkillSet = useMemo(() => {
-    const arr = parsedData?.skills ?? [];
-    return new Set(arr.map(s => normalize(s)));
-  }, [parsedData]);
-
-  const detectBestRole = () => {
-    if (!parsedData?.skills || parsedData.skills.length === 0) return '';
-    let bestRole = '';
-    let bestScore = -1;
-
-    for (const role of Object.keys(ROLE_SKILL_MAP)) {
-      const desired = ROLE_SKILL_MAP[role].map(normalize);
-      const overlap = desired.filter(d => parsedSkillSet.has(d)).length;
-      if (overlap > bestScore) {
-        bestScore = overlap;
-        bestRole = role;
-      }
-    }
-    return bestRole;
-  };
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFile(e.target.files?.[0] ?? null);
-  };
-
+  // -------------------------------
+  // Upload Resume
+  // -------------------------------
   const handleUpload = async () => {
     if (!file) {
-      setError('Choose a resume file first (.pdf/.docx).');
+      alert("Please select a file first");
       return;
     }
 
     setLoading(true);
-    setError('');
-    setParsedData(null);
-    setGapData([]);
-    setMissingSkills([]);
 
     const formData = new FormData();
-    formData.append('resume', file);
+    formData.append("file", file);
 
     try {
-      const res = await fetch(`${API}/upload`, {
-        method: 'POST',
-        body: formData
+      const res = await fetch("http://localhost:5000/upload-resume", {
+        method: "POST",
+        body: formData,
       });
 
-      if (!res.ok) {
-        setError(`Backend error: ${res.status}`);
-        return;
-      }
-
-      const data = await res.json();
-      if (!data.skills) data.skills = [];
-      if (!data.projects) data.projects = [];
-      setParsedData(data);
-
-      if (!selectedRole) {
-        const detected = detectBestRole();
-        if (detected) setSelectedRole(detected);
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Error connecting to backend.');
-    } finally {
-      setLoading(false);
+      const json = (await res.json()) as ParsedResume;
+      setParsed(json);
+      setAnalysis(null);
+    } catch {
+      alert("Upload failed!");
     }
+
+    setLoading(false);
   };
 
-  const addMissingSkills = () => {
-    if (!parsedData) return;
-    const newList = manualSkills.split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
-    if (newList.length === 0) return;
-
-    const combined = Array.from(new Set([...(parsedData.skills || []), ...newList]));
-    setParsedData({ ...parsedData, skills: combined });
-    setManualSkills('');
-  };
-
-  const computeMissingForRole = (role: string) => {
-    const desired = ROLE_SKILL_MAP[role]?.map(normalize) || [];
-    const missing = desired.filter(d => !parsedSkillSet.has(d));
-
-    const extras = GENERAL_VALUE_SKILLS
-      .map(normalize)
-      .filter(g => !parsedSkillSet.has(g) && !missing.includes(g))
-      .slice(0, 3);
-
-    const combined = [...missing, ...extras];
-
-    return combined.map(s => s
-      .split(' ')
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ')
-    );
-  };
-
-  const analyzeSkillGap = async () => {
-    if (!parsedData || !parsedData.skills || parsedData.skills.length === 0) {
-      setError('Upload resume or add skills first.');
+  // -------------------------------
+  // Analyze Resume
+  // -------------------------------
+  const handleAnalyze = async () => {
+    if (!parsed) {
+      alert("Upload resume first");
       return;
     }
 
-    const role = selectedRole || detectBestRole();
-    if (!role) {
-      setError('Select a role or upload a resume with clear skills.');
+    if (!selectedRole) {
+      alert("Select a target role");
       return;
     }
 
     setLoading(true);
-    setError('');
-    setGapData([]);
-    setMissingSkills([]);
-
-    const missing = computeMissingForRole(role);
-    setMissingSkills(missing);
 
     try {
-      const payloadSkills = missing.map(s => s.toLowerCase());
-
-      const res = await fetch(`${API}/course-recommendations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ missing_skills: payloadSkills })
+      const res = await fetch("http://localhost:5000/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skills: parsed.parsed.skills,
+          role: selectedRole,
+        }),
       });
 
-      if (!res.ok) {
-        setError(`Backend error: ${res.status}`);
-        return;
-      }
-
-      const data = await res.json();
-      setGapData(data.courses || []);
-    } catch (err) {
-      console.error(err);
-      setError('Error connecting to backend.');
-    } finally {
-      setLoading(false);
+      const json = (await res.json()) as AnalysisResponse;
+      setAnalysis(json);
+    } catch {
+      alert("Analysis failed!");
     }
+
+    setLoading(false);
   };
 
-  const roleOptions = Object.keys(ROLE_SKILL_MAP);
-
   return (
-    <main className="min-h-screen bg-neutral-900 text-slate-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-4xl">
-        <header className="mb-6 text-center">
-          <h1 className="text-4xl font-extrabold text-white">Career Booster</h1>
-          <p className="mt-2 text-slate-300">
-            Role-based skill gap analysis + course recommendations
-          </p>
-        </header>
+    <div className="min-h-screen p-10 bg-gradient-to-br from-[#0A0A0F] via-[#141421] to-black text-white">
+      <div className="max-w-4xl mx-auto space-y-10">
 
-        <section className="bg-neutral-850/60 border border-neutral-800 rounded-2xl shadow-2xl p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <h1 className="text-5xl font-extrabold text-center tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          AI Resume Analyzer
+        </h1>
 
-            {/* LEFT */}
-            <div className="p-4 space-y-4">
-              <label className="block text-sm font-medium text-slate-300">Upload Resume (PDF/DOCX)</label>
-              <input
-                type="file"
-                accept=".pdf,.docx"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-neutral-700 file:text-cyan-200"
-              />
+        {/* UPLOAD BOX */}
+        <div className="bg-white/5 border border-white/10 p-8 rounded-2xl backdrop-blur-xl shadow-xl space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Upload className="text-blue-400" />
+            Upload Your Resume
+          </h2>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Select Role</label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="mt-2 w-full bg-neutral-800 text-slate-100 px-3 py-2 rounded-md border border-neutral-700"
-                >
-                  <option value="">-- Auto Detect --</option>
-                  {roleOptions.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleUpload}
-                  className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-neutral-900 font-semibold py-2 rounded-md"
-                >
-                  Upload & Parse
-                </button>
-
-                <button
-                  onClick={analyzeSkillGap}
-                  className="flex-1 bg-indigo-700 hover:bg-indigo-600 text-white font-semibold py-2 rounded-md"
-                >
-                  Analyse Skill Gap
-                </button>
-              </div>
-
-              <div className="text-sm text-slate-400">
-                <p>
-                  Status: {loading ? <span className="text-yellow-300">Processing...</span> : <span className="text-emerald-400">Idle</span>}
-                </p>
-                {error && <p className="text-red-400 mt-2">{error}</p>}
-              </div>
-
-              {/* Add Skills */}
-              <div className="mt-4">
-                <label className="block text-sm text-slate-300">Add Missing Skills (comma separated)</label>
-                <input
-                  value={manualSkills}
-                  onChange={(e) => setManualSkills(e.target.value)}
-                  placeholder="e.g. Power BI, Kubernetes"
-                  className="mt-2 w-full px-3 py-2 rounded-md bg-neutral-800 text-slate-100 border border-neutral-700"
-                />
-                <div className="mt-2 flex gap-2">
-                  <button onClick={addMissingSkills} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded-md text-neutral-900 font-medium">
-                    Add
-                  </button>
-                  <button onClick={() => setManualSkills('')} className="bg-neutral-700 hover:bg-neutral-650 px-3 py-1 rounded-md text-slate-200">
-                    Clear
-                  </button>
-                </div>
-              </div>
+          <label className="block p-6 border border-white/10 bg-white/5 rounded-xl cursor-pointer hover:bg-white/10 transition">
+            <div className="flex flex-col items-center">
+              <FileText className="w-10 h-10 text-gray-300 mb-2" />
+              <span className="text-gray-300 text-center">
+                {file ? file.name : "Click to select your resume (.pdf or .docx)"}
+              </span>
             </div>
 
-            {/* RIGHT */}
-            <div className="p-4 bg-neutral-850 rounded-xl border border-neutral-800">
-              <h3 className="text-lg font-semibold text-white mb-3">Parsed Resume</h3>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="hidden"
+              onChange={(event) =>
+                setFile(event.target.files ? event.target.files[0] : null)
+              }
+            />
+          </label>
 
-              {/* SKILLS */}
-              <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-slate-300">Skills</span>
-                  <span className="text-xs text-slate-400">{parsedData?.skills?.length ?? 0}</span>
-                </div>
+          <button
+            onClick={handleUpload}
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 py-3 rounded-xl text-lg font-semibold flex justify-center items-center gap-2 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : <Upload />}
+            {loading ? "Processing..." : "Upload & Extract"}
+          </button>
+        </div>
 
-                <div className="max-h-40 overflow-auto rounded">
-                  <table className="w-full text-left">
-                    <tbody>
-                      {(parsedData?.skills?.length ?? 0) > 0 ? (
-                        parsedData!.skills!.map((s, i) => (
-                          <tr key={i} className="odd:bg-neutral-860 even:bg-neutral-855">
-                            <td className="px-3 py-2 text-slate-100">{s}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr><td className="px-3 py-3 text-slate-400">No skills parsed.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* PROJECTS */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-slate-300">Projects</span>
-                  <span className="text-xs text-slate-400">{parsedData?.projects?.length ?? 0}</span>
-                </div>
-
-                <div className="max-h-40 overflow-auto rounded">
-                  <table className="w-full text-left">
-                    <tbody>
-                      {(parsedData?.projects?.length ?? 0) > 0 ? (
-                        parsedData!.projects!.map((p, i) => (
-                          <tr key={i} className="odd:bg-neutral-860 even:bg-neutral-855">
-                            <td className="px-3 py-2 text-slate-100">{p}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr><td className="px-3 py-3 text-slate-400">No projects found.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+        {/* SKILLS DISPLAY */}
+        {parsed && (
+          <div className="bg-white/5 border border-white/10 p-8 rounded-2xl backdrop-blur-xl shadow-xl">
+            <h2 className="text-2xl font-bold mb-4">Extracted Skills</h2>
+            <div className="flex flex-wrap gap-2">
+              {parsed.parsed.skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="px-3 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 text-sm"
+                >
+                  {skill}
+                </span>
+              ))}
             </div>
-
           </div>
+        )}
 
-          {/* Missing Skills */}
-          {missingSkills.length > 0 && (
-            <div className="mt-6 bg-neutral-850 border border-neutral-800 rounded-md p-4">
-              <h3 className="text-md font-semibold text-cyan-300 mb-2">Recommended Skills</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {missingSkills.map((ms, i) => (
-                  <div key={i} className="px-3 py-2 rounded-md bg-neutral-800 border border-neutral-750 text-slate-100 text-sm">
-                    {ms}
-                  </div>
-                ))}
-              </div>
+        {/* ROLE SELECT */}
+        {parsed && (
+          <div className="bg-white/5 border border-white/10 p-8 rounded-2xl backdrop-blur-xl shadow-xl space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Search className="text-purple-400" />
+              Select Target Role
+            </h2>
+
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="w-full p-3 rounded-xl bg-black/30 border border-white/10 text-white"
+            >
+              <option value="">Choose a role…</option>
+              {ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 py-3 rounded-xl text-lg font-semibold flex justify-center items-center gap-2 disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <Search />}
+              {loading ? "Analyzing..." : "Analyze Resume"}
+            </button>
+          </div>
+        )}
+
+        {/* ANALYSIS RESULTS */}
+        {analysis && (
+          <div className="bg-white/5 border border-white/10 p-8 rounded-2xl backdrop-blur-xl shadow-xl space-y-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <CheckCircle className="text-green-400" />
+              Analysis Results
+            </h2>
+
+            <p className="text-lg">
+              <strong>Match Score:</strong>{" "}
+              <span className="text-green-300">{analysis.match_score}%</span>
+            </p>
+
+            <p className="text-lg">
+              <strong>Estimated Salary:</strong>{" "}
+              {analysis.salary_range.min} - {analysis.salary_range.max}
+            </p>
+
+            <h3 className="text-xl font-semibold mt-6">Missing Skills</h3>
+            <ul className="list-disc ml-6 text-red-300">
+              {analysis.missing.map((skill) => (
+                <li key={skill}>{skill}</li>
+              ))}
+            </ul>
+
+            <h3 className="text-xl font-semibold mt-6">Career Paths</h3>
+            <ul className="list-disc ml-6 text-blue-300">
+              {analysis.career_paths.map((path) => (
+                <li key={path}>{path}</li>
+              ))}
+            </ul>
+
+            <h3 className="text-xl font-semibold mt-6">AI-Generated Job Description</h3>
+            <p className="text-gray-300">{analysis.job_description}</p>
+          </div>
+        )}
+
+        {/* COURSES */}
+        {analysis?.courses && analysis.courses.length > 0 && (
+          <div className="bg-white/5 border border-white/10 p-8 rounded-2xl backdrop-blur-xl shadow-xl space-y-4">
+            <h2 className="text-2xl font-bold">Recommended Courses</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {analysis.courses.map((course) => (
+                <div
+                  key={course.url}
+                  className="bg-black/30 border border-white/10 rounded-xl p-5 hover:border-blue-500 transition"
+                >
+                  <h3 className="font-semibold text-lg">{course.title}</h3>
+                  <p className="text-sm text-gray-300 mt-1">
+                    Skill: <strong>{course.skill}</strong>
+                  </p>
+                  <p className="text-sm text-gray-400">Platform: {course.platform}</p>
+
+                  <a
+                    href={course.url}
+                    target="_blank"
+                    className="mt-3 inline-block bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-white text-sm"
+                  >
+                    View Course →
+                  </a>
+                </div>
+              ))}
             </div>
-          )}
-
-          {/* Course Recommendations */}
-          {gapData.length > 0 && (
-            <div className="mt-6 bg-neutral-850 border border-neutral-800 rounded-md p-4">
-              <h3 className="text-md font-semibold text-cyan-300 mb-3">Recommended Courses</h3>
-
-              <div className="overflow-auto max-h-72">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-xs text-slate-400">
-                      <th className="px-3 py-2">Skill</th>
-                      <th className="px-3 py-2">Course</th>
-                      <th className="px-3 py-2">Platform</th>
-                      <th className="px-3 py-2">Link</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gapData.map((c, i) => (
-                      <tr key={i} className="odd:bg-neutral-860 even:bg-neutral-855">
-                        <td className="px-3 py-2 text-slate-100">{c.skill}</td>
-                        <td className="px-3 py-2 text-slate-100">{c.title}</td>
-                        <td className="px-3 py-2 text-cyan-200">{c.platform}</td>
-                        <td className="px-3 py-2">
-                          <a href={c.link} target="_blank" className="text-indigo-300 underline">View</a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 text-xs text-slate-500">Tip: Auto-detect role works best with resumes containing technical skills.</div>
-        </section>
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
